@@ -1,0 +1,56 @@
+const base = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+
+// Images live in public/art/art-N.webp (N = index + 1).
+// Order matters: the first 12 are what mobile visitors see.
+// `category` is the medium shown in captions; `folder` is the slug from
+// data/folders.js that decides which page the piece lives on.
+const artworks = [
+  { title: "Shifting Focus", category: "Digital Illustration", folder: "illustration" },
+  { title: "Bloom", category: "Digital Illustration", folder: "illustration" },
+  { title: "Wedding Invite", category: "Wedding Stationery", folder: "design" },
+  { title: "Couple Portrait", category: "Digital Illustration", folder: "characters" },
+  { title: "Sticker Portrait", category: "Digital Illustration", folder: "characters" },
+  { title: "Cyber Panda", category: "Digital Illustration", folder: "characters" },
+  { title: "Bride & Groom", category: "Digital Illustration", folder: "characters" },
+  { title: "Reception Couple", category: "Digital Illustration", folder: "characters" },
+  { title: "Save the Date", category: "Wedding Stationery", folder: "design" },
+  { title: "Wedding Card", category: "Wedding Stationery", folder: "design" },
+  { title: "Goddess Lakshmi", category: "Tanjore Painting", folder: "traditional" },
+  { title: "Goddess Lakshmi II", category: "Tanjore Painting", folder: "traditional" },
+  { title: "God Ganesha", category: "Tanjore Painting", folder: "traditional" },
+  { title: "God Ganesha II", category: "Tanjore Painting", folder: "traditional" },
+  { title: "Empathy", category: "Pointed Pen Calligraphy", folder: "calligraphy" },
+  { title: "What Is Your Why", category: "Pointed Pen Calligraphy", folder: "calligraphy" },
+  { title: "Keep Growing", category: "Brush Calligraphy", folder: "calligraphy" },
+  { title: "Kind Words Cost Nothing", category: "Brush Calligraphy", folder: "calligraphy" },
+  { title: "The Sky Is Not the Limit", category: "Brush Calligraphy", folder: "calligraphy" },
+  { title: "It's Okay", category: "Brush Calligraphy", folder: "calligraphy" },
+  { title: "Key to Positivi-tea", category: "Brush Calligraphy", folder: "calligraphy" },
+  { title: "Enjoy Your Own Company", category: "Brush Calligraphy", folder: "calligraphy" },
+  { title: "Mindset Is Everything", category: "Brush Calligraphy", folder: "calligraphy" },
+  { title: "Rain Doesn't Last Forever", category: "Brush Calligraphy", folder: "calligraphy" },
+  { title: "Hakuna Matata", category: "Brush Calligraphy", folder: "calligraphy" },
+  { title: "Triptych", category: "Canvas Painting", folder: "traditional" },
+  { title: "Maple Sunset", category: "Canvas Painting", folder: "traditional" },
+  { title: "Abstract Faces", category: "Canvas Painting", folder: "traditional" },
+  { title: "Lakeside", category: "Canvas Painting", folder: "traditional" },
+  { title: "Mountain Lake", category: "Canvas Painting", folder: "traditional" },
+  { title: "Krishna", category: "Canvas Painting", folder: "traditional" },
+  { title: "Krishna II", category: "Canvas Painting", folder: "traditional" },
+  { title: "Ganesha", category: "Pencil Sketch", folder: "traditional" },
+  { title: "Mother & Child", category: "Pencil Sketch", folder: "traditional" },
+  { title: "Portraits", category: "Pencil Sketch", folder: "traditional" },
+  { title: "Human Miracle", category: "Pencil Sketch", folder: "traditional" },
+  { title: "Geometric Study", category: "Pencil Sketch", folder: "traditional" },
+  { title: "Owl", category: "Pencil Sketch", folder: "traditional" },
+  { title: "Sunset Silhouettes", category: "Pastel Art", folder: "traditional" },
+  { title: "Faces in Colour", category: "Pastel Art", folder: "traditional" },
+  { title: "Cherry Blossom", category: "Chalk Pastel", folder: "traditional" },
+  { title: "Palm Sunset", category: "Chalk Pastel", folder: "traditional" },
+  { title: "Breaking Silence", category: "Digital Illustration", folder: "illustration" },
+  { title: "Faces", category: "Digital Illustration", folder: "illustration" },
+  { title: "Overthinking", category: "Digital Illustration", folder: "illustration" },
+  { title: "Good Things Take Time", category: "Digital Illustration", folder: "illustration" },
+].map((a, i) => ({ ...a, src: `${base}/art/art-${i + 1}.webp` }));
+
+export default artworks;

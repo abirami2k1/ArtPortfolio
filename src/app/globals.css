@@ -1,0 +1,791 @@
+:root {
+  --bg: #0a0a0a;
+  --fg: #f4f4f4;
+  --muted: #8a8a8a;
+  --frame: #ffffff;
+  --ease: cubic-bezier(0.075, 0.82, 0.165, 1);
+
+  /* folder tabs */
+  --folder-1: #525252;
+  --folder-1-fg: var(--fg);
+  --folder-2: #262626;
+  --folder-3: #3a3a3a;
+  --folder-disabled: #141414;
+  --folder-disabled-fg: #3a3a3a;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-archivo), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+img {
+  display: block;
+}
+
+.home {
+  --folders-h: 188px;
+  --panel-h: clamp(200px, calc(100svh - var(--folders-h) - 250px), 340px);
+  display: flex;
+  flex-direction: column;
+  height: 100svh;
+  overflow: hidden;
+}
+
+.hero {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  overflow: hidden;
+}
+
+/* ---------- header ---------- */
+.header {
+  position: absolute;
+  inset: 0 0 auto 0;
+  z-index: 20;
+  display: flex;
+  justify-content: space-between;
+  padding: 24px 32px;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.header-brand {
+  font-weight: 800;
+}
+
+.header-by {
+  color: var(--muted);
+}
+
+/* ---------- spotlight (accordion frames) ---------- */
+.spotlight {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+/* Desaturate the spotlight while a folder is hovered so its previews stand out. */
+.spotlight {
+  transition: filter 0.4s ease;
+}
+
+@media (hover: hover) and (min-width: 1000px) {
+  .home:has(.folder:hover, .folder:focus-visible) .spotlight {
+    filter: grayscale(1) brightness(0.45);
+  }
+}
+
+.spotlight-track {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 80%;
+  max-width: 1200px;
+  transform: translate(-50%, -50%);
+}
+
+.spotlight-panels {
+  position: relative;
+  width: 100%;
+  height: var(--panel-h, 340px);
+}
+
+.spotlight-panel {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 1s var(--ease);
+  will-change: left, width;
+}
+
+.spotlight-panel img {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 320px;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  user-select: none;
+}
+
+.spotlight-focus-indicator {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  border: 3px solid var(--frame);
+  transition: all 1s var(--ease);
+  will-change: left, width;
+  pointer-events: none;
+  z-index: 100;
+}
+
+/* Frame lines that shoot up and down to the viewport edges. */
+.spotlight-focus-indicator::before,
+.spotlight-focus-indicator::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 3px;
+  background: var(--frame);
+}
+
+.spotlight-focus-indicator::before {
+  bottom: 100%;
+  height: 100svh;
+}
+
+.spotlight-focus-indicator::after {
+  top: 100%;
+  height: 100svh;
+}
+
+.spotlight-caption {
+  position: absolute;
+  top: calc(100% + 18px);
+  left: 0;
+  display: flex;
+  gap: 14px;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  animation: caption-in 0.6s var(--ease) both;
+}
+
+.spotlight-caption span:last-child {
+  color: var(--muted);
+}
+
+@keyframes caption-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---------- links ---------- */
+/* Sits on the caption row, right-aligned with the track edge. */
+.links {
+  position: absolute;
+  /* Line up with the track's right edge (80% wide, capped at 1200px). */
+  right: max(10%, calc((100% - 1200px) / 2));
+  top: calc(50% + var(--panel-h, 340px) / 2 + 18px);
+  z-index: 20;
+  display: flex;
+  gap: 22px;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.links a {
+  opacity: 0.85;
+  transition: opacity 0.3s;
+}
+
+.links a:hover {
+  opacity: 1;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+/* ---------- mobile ---------- */
+@media (max-width: 1000px) {
+  .header {
+    padding: 18px 16px;
+  }
+
+  .spotlight-panels {
+    height: var(--panel-h, 280px);
+  }
+
+  .spotlight-track {
+    width: 90%;
+  }
+
+  .spotlight-panel img {
+    width: 220px;
+  }
+
+
+  .links {
+    top: auto;
+    right: 16px;
+    bottom: 22px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px 16px;
+  }
+}
+
+/* ---------- folders (creative corner) ---------- */
+.folders-section {
+  position: relative;
+  z-index: 30;
+  flex: none;
+  width: 100%;
+  height: var(--folders-h);
+}
+
+/* Clip only the bottom edge so hover previews can rise over the spotlight. */
+.folders {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  clip-path: inset(-100vh 0 0 0);
+}
+
+.folders-row {
+  position: relative;
+  width: 100%;
+  display: flex;
+}
+
+/* Rows are 200px tall; these offsets leave 58px / 58px / 72px showing. */
+.folders-row:nth-child(1) {
+  bottom: -412px;
+}
+
+.folders-row:nth-child(2) {
+  bottom: -270px;
+}
+
+.folders-row:nth-child(3) {
+  bottom: -128px;
+}
+
+.folders-row:nth-child(2) .folder:nth-child(1) {
+  flex: 2;
+}
+
+.folders-row:nth-child(2) .folder:nth-child(2) {
+  flex: 3;
+}
+
+.folder {
+  position: relative;
+  flex: 1;
+  height: 200px;
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  outline: none;
+}
+
+.folder-preview {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 25rem;
+  height: 100%;
+  pointer-events: none;
+}
+
+.folder-preview-img {
+  position: absolute;
+  top: 50%;
+  width: 5.5rem;
+  height: 8.25rem;
+  overflow: hidden;
+}
+
+.folder-preview-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.folder-preview-img.is-empty {
+  background: #1c1c1c;
+  border: 1px dashed var(--folder-3);
+}
+
+.folder-preview-img:nth-child(1) {
+  left: 20%;
+  transform-origin: top left;
+}
+
+.folder-preview-img:nth-child(2) {
+  left: 50%;
+  transform-origin: center;
+}
+
+.folder-preview-img:nth-child(3) {
+  left: 80%;
+  transform-origin: top right;
+}
+
+.folder-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  will-change: transform;
+}
+
+.folder-index {
+  position: relative;
+  width: 40%;
+  padding: 0.4rem 0.6rem;
+}
+
+/* Slanted edge that turns the index strip into a folder tab. */
+.folder-index::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 99%;
+  height: 101%;
+  aspect-ratio: 1;
+  clip-path: polygon(0 0, 25% 0, 100% 100%, 0% 100%);
+}
+
+.folder-index p {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  line-height: 1;
+}
+
+.folder-name {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: flex-start;
+  padding: 0 0.25rem 0 1.25rem;
+}
+
+.folder-name h2 {
+  font-size: 1.25rem;
+  font-weight: 400;
+  line-height: 1;
+  text-transform: lowercase;
+}
+
+.folder-index p,
+.folder-name h2 {
+  transition: color 250ms ease;
+}
+
+.folder-index,
+.folder-index::after,
+.folder-name {
+  background-color: var(--folder-bg);
+  transition: background-color 250ms ease;
+}
+
+.folder {
+  color: var(--folder-fg);
+}
+
+.folder.variant-1 {
+  --folder-bg: var(--folder-1);
+  --folder-fg: var(--folder-1-fg);
+}
+
+.folder.variant-2 {
+  --folder-bg: var(--folder-2);
+  --folder-fg: var(--fg);
+}
+
+.folder.variant-3 {
+  --folder-bg: var(--folder-3);
+  --folder-fg: var(--fg);
+}
+
+.folder.disabled {
+  --folder-bg: var(--folder-disabled);
+  --folder-fg: var(--folder-disabled-fg);
+}
+
+.folder:focus-visible .folder-name h2 {
+  text-decoration: underline;
+  text-underline-offset: 6px;
+}
+
+/* ---------- folder page ---------- */
+.folder-page {
+  position: relative;
+  min-height: 100svh;
+  padding: 120px 32px 48px;
+}
+
+.folder-page-head {
+  margin-bottom: 40px;
+}
+
+.folder-page-index,
+.folder-page-blurb {
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.folder-page-head h1 {
+  margin: 12px 0;
+  font-size: clamp(3rem, 9vw, 7rem);
+  font-weight: 400;
+  line-height: 0.95;
+  text-transform: lowercase;
+}
+
+.gallery-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 28px;
+}
+
+.gallery-filters button {
+  padding: 8px 14px;
+  border: 1px solid var(--folder-3);
+  border-radius: 999px;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.25s;
+}
+
+.gallery-filters button:hover {
+  color: var(--fg);
+}
+
+.gallery-filters button[aria-pressed="true"] {
+  background: var(--folder-1);
+  border-color: var(--folder-1);
+  color: var(--folder-1-fg);
+}
+
+.gallery {
+  list-style: none;
+  columns: 3 280px;
+  column-gap: 20px;
+}
+
+.gallery-item {
+  break-inside: avoid;
+  margin-bottom: 28px;
+}
+
+.gallery-item img {
+  width: 100%;
+  height: auto;
+}
+
+.gallery-caption {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 10px;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.gallery-caption span:last-child {
+  color: var(--muted);
+  text-align: right;
+}
+
+.gallery-empty {
+  padding: 80px 0;
+  color: var(--muted);
+  font-size: 14px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.folder-page-nav {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 48px;
+  padding-top: 24px;
+  border-top: 1px solid var(--folder-2);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.folder-page-nav a:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+@media (max-width: 1000px) {
+  .home {
+    --folders-h: auto;
+    --panel-h: clamp(160px, calc(100svh - 610px), 280px);
+  }
+
+  .folders {
+    height: auto;
+    clip-path: none;
+  }
+
+  .folders-row {
+    flex-direction: column;
+    bottom: 0 !important;
+  }
+
+  .folder,
+  .folders-row:nth-child(2) .folder:nth-child(n) {
+    flex: none;
+    height: 72px;
+    margin-bottom: -0.5rem;
+  }
+
+  .folder-preview {
+    display: none;
+  }
+
+  .folder-index {
+    padding: 0.5rem 16px;
+  }
+
+  .folder-name {
+    padding: 0 16px;
+  }
+
+  .folder-name h2 {
+    font-size: 1.5rem;
+  }
+
+  /* Swap row two so stacked neighbours never share a colour. */
+  .folders-row:nth-child(2) .folder.variant-2 {
+    --folder-bg: var(--folder-3);
+  }
+
+  .folders-row:nth-child(2) .folder.variant-3 {
+    --folder-bg: var(--folder-2);
+  }
+
+  .folder-page {
+    padding: 88px 16px 32px;
+  }
+}
+
+/* ---------- spotlight editor (dev only) ---------- */
+.sp-editor-toggle {
+  position: absolute;
+  top: 64px;
+  right: 32px;
+  z-index: 40;
+  padding: 6px 12px;
+  border: 1px dashed var(--muted);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--muted);
+  font: inherit;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.sp-editor-toggle:hover {
+  color: var(--fg);
+  border-color: var(--fg);
+}
+
+.spotlight-panel.is-panning {
+  cursor: grab;
+  touch-action: none;
+}
+
+.spotlight-panel.is-panning:active {
+  cursor: grabbing;
+}
+
+.sp-editor {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 1000;
+  max-height: 46svh;
+  display: flex;
+  flex-direction: column;
+  background: #141414;
+  border-top: 1px solid var(--folder-3);
+  box-shadow: 0 -20px 40px rgba(0, 0, 0, 0.5);
+  font-size: 12px;
+}
+
+.sp-editor-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--folder-2);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.sp-editor-head span {
+  flex: 1;
+  color: var(--muted);
+}
+
+.sp-editor button {
+  padding: 6px 12px;
+  border: 1px solid var(--folder-3);
+  border-radius: 6px;
+  background: var(--folder-2);
+  color: var(--fg);
+  font: inherit;
+  cursor: pointer;
+}
+
+.sp-editor button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.sp-editor button.is-primary {
+  background: var(--fg);
+  border-color: var(--fg);
+  color: var(--bg);
+}
+
+.sp-editor-body {
+  display: flex;
+  gap: 20px;
+  min-height: 0;
+  padding: 16px 20px;
+}
+
+.sp-editor-thumbs {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 6px;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.sp-editor-thumbs li {
+  position: relative;
+  width: 48px;
+  height: 64px;
+  border: 2px solid transparent;
+  cursor: grab;
+}
+
+.sp-editor-thumbs li img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.sp-editor-thumbs li span {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  padding: 0 3px;
+  background: rgba(0, 0, 0, 0.7);
+  font-size: 9px;
+}
+
+.sp-editor-thumbs li.is-selected {
+  border-color: var(--fg);
+}
+
+.sp-editor-thumbs li.is-drop-target {
+  border-color: var(--muted);
+  border-style: dashed;
+}
+
+/* Divider after the last piece phones show. */
+.sp-editor-thumbs li.is-mobile-cutoff {
+  margin-right: 14px;
+}
+
+.sp-editor-thumbs li.is-mobile-cutoff::after {
+  content: "";
+  position: absolute;
+  top: -2px;
+  right: -12px;
+  width: 2px;
+  height: calc(100% + 4px);
+  background: var(--muted);
+}
+
+.sp-editor-controls {
+  width: 260px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+}
+
+.sp-editor-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.sp-editor-move,
+.sp-editor-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.sp-editor-move button,
+.sp-editor-actions button {
+  flex: 1;
+}
+
+.sp-editor-controls label {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px;
+  color: var(--muted);
+}
+
+.sp-editor-controls input[type="range"] {
+  grid-column: 1 / -1;
+  accent-color: var(--fg);
+}
+
+.sp-editor-actions {
+  margin-top: 4px;
+}
+
+.sp-editor-status {
+  color: var(--muted);
+}
