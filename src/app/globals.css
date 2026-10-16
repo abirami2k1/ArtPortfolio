@@ -79,6 +79,122 @@ img {
   color: var(--muted);
 }
 
+/* ---------- menu (mobile navigation) ---------- */
+/* Desktop navigates folders from the stack, so the toggle is mobile-only. */
+.menu-toggle {
+  display: none;
+  border: 0;
+  background: none;
+  color: var(--fg);
+  font: inherit;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.menu-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  padding: 18px 16px 28px;
+  background: var(--bg);
+  animation: menu-in 0.35s var(--ease) both;
+}
+
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.menu-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.menu-brand {
+  font-weight: 800;
+}
+
+.menu-close {
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.menu-folders {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+}
+
+.menu-folder {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  padding: 14px 0;
+  border-top: 1px solid var(--folder-2);
+  animation: menu-row-in 0.4s var(--ease) both;
+}
+
+.menu-folders .menu-folder:last-child {
+  border-bottom: 1px solid var(--folder-2);
+}
+
+@keyframes menu-row-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.menu-folder-index {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+}
+
+.menu-folder-name {
+  font-size: clamp(1.75rem, 9vw, 2.75rem);
+  line-height: 1;
+  text-transform: lowercase;
+}
+
+.menu-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--folder-2);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
 /* ---------- spotlight (accordion frames) ---------- */
 .spotlight {
   position: absolute;
@@ -192,6 +308,12 @@ img {
   }
 }
 
+/* ---------- mobile accordion ---------- */
+/* The same accordion as desktop, turned on its side for phones. */
+.sa {
+  display: none;
+}
+
 /* ---------- links ---------- */
 /* Sits on the caption row, right-aligned with the track edge. */
 .links {
@@ -220,30 +342,144 @@ img {
 
 /* ---------- mobile ---------- */
 @media (max-width: 1000px) {
+  /* The page scrolls as a normal document: no fixed viewport, no nested
+     scroll container, so touch scrolling can't be swallowed. */
+  .home {
+    height: auto;
+    min-height: 100svh;
+    overflow: visible;
+  }
+
+  .hero {
+    flex: none;
+    min-height: 0;
+    overflow: visible;
+  }
+
   .header {
+    position: sticky;
+    top: 0;
     padding: 18px 16px;
+    background: var(--bg);
   }
 
-  .spotlight-panels {
-    height: var(--panel-h, 280px);
+  /* The accordion and its contact row give way to the feed. */
+  .spotlight,
+  .links,
+  .header-by {
+    display: none;
   }
 
-  .spotlight-track {
-    width: 90%;
+  .menu-toggle {
+    display: inline-block;
   }
 
-  .spotlight-panel img {
-    width: 220px;
+  .sa {
+    display: block;
+    position: relative;
   }
 
+  /* The stage pins to the viewport while the spacer above scrolls past. */
+  .sa-stage {
+    position: sticky;
+    top: 0;
+    height: 100svh;
+    overflow: hidden;
 
-  .links {
-    top: auto;
+    /* Driven by scroll velocity; these rest values keep the stage correct
+       before any script runs. */
+    --sa-skew: 0deg;
+    --sa-stretch: 1;
+  }
+
+  .sa-item {
+    position: absolute;
+    left: 16px;
     right: 16px;
-    bottom: 22px;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: 6px 16px;
+    padding: 0;
+    border: 0;
+    background: var(--folder-2);
+    overflow: hidden;
+    cursor: pointer;
+    transition: top 0.6s var(--ease), height 0.6s var(--ease);
+    will-change: top, height;
+  }
+
+  .sa-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: skewY(var(--sa-skew)) scaleY(var(--sa-stretch));
+    pointer-events: none;
+    user-select: none;
+  }
+
+  /* The open piece, framed, with lines running out to both edges — the
+     desktop frame rotated with everything else. */
+  .sa-frame {
+    position: absolute;
+    z-index: 5;
+    left: 16px;
+    right: 16px;
+    border: 3px solid var(--frame);
+    pointer-events: none;
+    transition: top 0.6s var(--ease), height 0.6s var(--ease);
+    will-change: top, height;
+  }
+
+  .sa-frame::before,
+  .sa-frame::after {
+    content: "";
+    position: absolute;
+    width: 100vw;
+    height: 3px;
+    background: var(--frame);
+  }
+
+  .sa-frame::before {
+    top: -3px;
+    right: 100%;
+  }
+
+  .sa-frame::after {
+    bottom: -3px;
+    left: 100%;
+  }
+
+  .sa-caption {
+    position: absolute;
+    z-index: 6;
+    left: 16px;
+    right: 16px;
+    bottom: 18px;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    text-shadow: 0 1px 14px rgba(0, 0, 0, 0.9);
+    animation: caption-in 0.5s var(--ease) both;
+  }
+
+  .sa-index span,
+  .sa-category {
+    color: var(--muted);
+  }
+
+  .sa-title {
+    flex: 1;
+  }
+
+  .sa-category {
+    text-align: right;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sa-item,
+    .sa-frame {
+      transition: none;
+    }
   }
 }
 
@@ -588,57 +824,21 @@ img {
 }
 
 @media (max-width: 1000px) {
-  .home {
-    --folders-h: auto;
-    --panel-h: clamp(160px, calc(100svh - 610px), 280px);
-  }
-
-  .folders {
-    height: auto;
-    clip-path: none;
-  }
-
-  .folders-row {
-    flex-direction: column;
-    bottom: 0 !important;
-  }
-
-  .folder,
-  .folders-row:nth-child(2) .folder:nth-child(n) {
-    flex: none;
-    height: 72px;
-    margin-bottom: -0.5rem;
-  }
-
-  .folder-preview {
+  /* No folder stack on mobile: folders live in the menu instead. */
+  .folders-section {
     display: none;
   }
 
-  .folder-index {
-    padding: 0.5rem 16px;
-  }
-
-  .folder-name {
-    padding: 0 16px;
-  }
-
-  .folder-name h2 {
-    font-size: 1.5rem;
-  }
-
-  /* Swap row two so stacked neighbours never share a colour. */
-  .folders-row:nth-child(2) .folder.variant-2 {
-    --folder-bg: var(--folder-3);
-  }
-
-  .folders-row:nth-child(2) .folder.variant-3 {
-    --folder-bg: var(--folder-2);
-  }
-
+  /* Stack the category page top-down on phones: title, preview, strip, nav. */
   .folder-page-head {
     left: 16px;
     right: 16px;
-    bottom: 76px;
+    top: 72px;
+    bottom: auto;
+  }
+
+  .folder-page-head h1 {
+    font-size: clamp(2rem, 11vw, 3rem);
   }
 
   .folder-page-nav {
@@ -651,7 +851,7 @@ img {
   .minimap {
     top: auto;
     right: auto;
-    bottom: 11em;
+    bottom: 90px;
     left: 50%;
     transform: translateX(-50%);
     width: min(90vw, 420px);
@@ -676,9 +876,9 @@ img {
   }
 
   .img-preview {
-    top: 38%;
-    width: 80%;
-    height: 50%;
+    top: 46%;
+    width: 84%;
+    height: 42%;
   }
 }
 

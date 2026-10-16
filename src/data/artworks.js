@@ -1,9 +1,62 @@
 const base = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
 // Images live in public/art/art-N.webp (N = index + 1).
-// Order matters: the first 12 are what mobile visitors see.
+// Order sets the spotlight sequence on both the desktop accordion and the
+// mobile feed.
 // `category` is the medium shown in captions; `folder` is the slug from
 // data/folders.js that decides which page the piece lives on.
+// Intrinsic pixel sizes of public/art/art-N.webp, read from the files.
+// Captioned layouts set width/height from these so a row reserves its
+// space before the image loads — no reflow, and no zero-height rows.
+const dimensions = [
+  [787, 1400],
+  [1208, 1208],
+  [975, 1400],
+  [1034, 1292],
+  [1068, 1064],
+  [1052, 1058],
+  [1042, 1298],
+  [982, 1356],
+  [1034, 1286],
+  [1012, 1400],
+  [802, 1020],
+  [362, 442],
+  [810, 1008],
+  [342, 424],
+  [846, 838],
+  [478, 472],
+  [554, 544],
+  [510, 508],
+  [512, 504],
+  [530, 658],
+  [490, 524],
+  [550, 484],
+  [550, 544],
+  [438, 418],
+  [568, 456],
+  [898, 674],
+  [882, 642],
+  [964, 1188],
+  [948, 850],
+  [788, 592],
+  [814, 984],
+  [694, 502],
+  [708, 890],
+  [778, 562],
+  [948, 694],
+  [684, 760],
+  [770, 958],
+  [606, 492],
+  [636, 784],
+  [786, 578],
+  [840, 702],
+  [878, 644],
+  [720, 726],
+  [720, 722],
+  [736, 736],
+  [736, 736],
+].map(([width, height]) => ({ width, height }));
+
 const artworks = [
   { title: "Shifting Focus", category: "Digital Illustration", folder: "illustration" },
   { title: "Bloom", category: "Digital Illustration", folder: "illustration" },
@@ -51,6 +104,10 @@ const artworks = [
   { title: "Faces", category: "Digital Illustration", folder: "illustration" },
   { title: "Overthinking", category: "Digital Illustration", folder: "illustration" },
   { title: "Good Things Take Time", category: "Digital Illustration", folder: "illustration" },
-].map((a, i) => ({ ...a, src: `${base}/art/art-${i + 1}.webp` }));
+].map((a, i) => ({
+  ...a,
+  src: `${base}/art/art-${i + 1}.webp`,
+  ...dimensions[i],
+}));
 
 export default artworks;

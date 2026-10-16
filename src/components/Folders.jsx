@@ -122,7 +122,9 @@ export default function Folders() {
                           previews[i] ? "" : " is-empty"
                         }`}
                       >
-                        {previews[i] && <img src={previews[i].src} alt="" />}
+                        {previews[i] && (
+                          <img src={previews[i].src} alt="" loading="lazy" />
+                        )}
                       </div>
                     ))}
                   </div>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import spotlight from "@/data/spotlight";
+import SpotlightAccordion from "@/components/SpotlightAccordion";
 import SpotlightEditor, {
   parsePosition,
   formatPosition,
@@ -10,10 +11,7 @@ import SpotlightEditor, {
 const PANEL_WIDTH_COLLAPSED_MAX = 20;
 const PANEL_WIDTH_COLLAPSED_MIN = 6;
 const PANEL_WIDTH_EXPANDED = 320;
-const PANEL_WIDTH_EXPANDED_MOBILE = 150;
 const PANEL_GAP = 4;
-const PANEL_COUNT_MOBILE = 12;
-const BREAKPOINT_MOBILE = 1000;
 // Percent of crop shift per pixel dragged in the editor.
 const PAN_SENSITIVITY = 0.25;
 const CAN_EDIT = process.env.NODE_ENV === "development";
@@ -21,18 +19,14 @@ const CAN_EDIT = process.env.NODE_ENV === "development";
 export default function Spotlight() {
   const trackRef = useRef(null);
   const [trackWidth, setTrackWidth] = useState(0);
-  const [isMobile, setIsMobile] = useState(false);
   const [focusedPanel, setFocusedPanel] = useState(0);
   const [items, setItems] = useState(spotlight);
   const [savedItems, setSavedItems] = useState(spotlight);
   const [editing, setEditing] = useState(false);
   const panRef = useRef(null);
 
-  const panelCount = isMobile ? PANEL_COUNT_MOBILE : items.length;
-  const expandedWidth = Math.min(
-    isMobile ? PANEL_WIDTH_EXPANDED_MOBILE : PANEL_WIDTH_EXPANDED,
-    trackWidth * 0.45,
-  );
+  const panelCount = items.length;
+  const expandedWidth = Math.min(PANEL_WIDTH_EXPANDED, trackWidth * 0.45);
   // Shrink the collapsed strips so every panel fits inside the track.
   const collapsedWidth = Math.max(
     PANEL_WIDTH_COLLAPSED_MIN,
@@ -42,18 +36,15 @@ export default function Spotlight() {
     ),
   );
 
+  // Mobile hides the accordion, so the track measures 0 there and no panels
+  // are built: phones get the feed below instead.
   useEffect(() => {
     const observer = new ResizeObserver(([entry]) => {
       setTrackWidth(entry.contentRect.width);
-      setIsMobile(window.innerWidth < BREAKPOINT_MOBILE);
     });
     if (trackRef.current) observer.observe(trackRef.current);
     return () => observer.disconnect();
   }, []);
-
-  useEffect(() => {
-    setFocusedPanel(0);
-  }, [panelCount]);
 
   const getPanelPosition = useCallback(
     (panelIndex) => {
@@ -103,74 +94,77 @@ export default function Spotlight() {
   const ready = trackWidth > 0;
 
   return (
-    <section className="spotlight">
-      <div className="spotlight-track" ref={trackRef}>
-        <div className="spotlight-panels">
-          {ready && (
-            <>
-              <div
-                className="spotlight-focus-indicator"
-                style={getPanelPosition(focusedPanel)}
-              />
+    <>
+      <section className="spotlight">
+        <div className="spotlight-track" ref={trackRef}>
+          <div className="spotlight-panels">
+            {ready && (
+              <>
+                <div
+                  className="spotlight-focus-indicator"
+                  style={getPanelPosition(focusedPanel)}
+                />
 
-              {items.slice(0, panelCount).map((art, i) => {
-                const panning = editing && i === focusedPanel;
-                return (
-                  <div
-                    key={`${isMobile ? "m" : "d"}-${i}`}
-                    className={`spotlight-panel${panning ? " is-panning" : ""}`}
-                    style={getPanelPosition(i)}
-                    onMouseEnter={
-                      !isMobile && !editing
-                        ? () => setFocusedPanel(i)
-                        : undefined
-                    }
-                    onClick={
-                      isMobile || editing ? () => setFocusedPanel(i) : undefined
-                    }
-                    onPointerDown={panning ? startPan : undefined}
-                    onPointerMove={panning ? movePan : undefined}
-                    onPointerUp={panning ? endPan : undefined}
-                    onPointerCancel={panning ? endPan : undefined}
-                  >
-                    <img
-                      src={art.src}
-                      alt={art.title}
-                      style={{ objectPosition: art.position }}
-                    />
-                  </div>
-                );
-              })}
-            </>
-          )}
+                {items.map((art, i) => {
+                  const panning = editing && i === focusedPanel;
+                  return (
+                    <div
+                      key={i}
+                      className={`spotlight-panel${panning ? " is-panning" : ""}`}
+                      style={getPanelPosition(i)}
+                      onMouseEnter={
+                        !editing ? () => setFocusedPanel(i) : undefined
+                      }
+                      onClick={() => setFocusedPanel(i)}
+                      onPointerDown={panning ? startPan : undefined}
+                      onPointerMove={panning ? movePan : undefined}
+                      onPointerUp={panning ? endPan : undefined}
+                      onPointerCancel={panning ? endPan : undefined}
+                    >
+                      <img
+                        src={art.src}
+                        alt={art.title}
+                        style={{ objectPosition: art.position }}
+                      />
+                    </div>
+                  );
+                })}
+              </>
+            )}
+          </div>
+
+          <p className="spotlight-caption" key={focusedPanel}>
+            <span>{focused.title}</span>
+            <span>{focused.category}</span>
+          </p>
         </div>
 
-        <p className="spotlight-caption" key={focusedPanel}>
-          <span>{focused.title}</span>
-          <span>{focused.category}</span>
-        </p>
-      </div>
+        {CAN_EDIT && !editing && (
+          <button
+            type="button"
+            className="sp-editor-toggle"
+            onClick={() => setEditing(true)}
+          >
+            Edit spotlight
+          </button>
+        )}
+        {CAN_EDIT && editing && (
+          <SpotlightEditor
+            items={items}
+            setItems={setItems}
+            savedItems={savedItems}
+            setSavedItems={setSavedItems}
+            focused={focusedPanel}
+            setFocused={setFocusedPanel}
+            onClose={() => setEditing(false)}
+          />
+        )}
+      </section>
 
-      {CAN_EDIT && !editing && (
-        <button
-          type="button"
-          className="sp-editor-toggle"
-          onClick={() => setEditing(true)}
-        >
-          Edit spotlight
-        </button>
-      )}
-      {CAN_EDIT && editing && (
-        <SpotlightEditor
-          items={items}
-          setItems={setItems}
-          savedItems={savedItems}
-          setSavedItems={setSavedItems}
-          focused={focusedPanel}
-          setFocused={setFocusedPanel}
-          onClose={() => setEditing(false)}
-        />
-      )}
-    </section>
+      {/* Phones get the same accordion turned on its side, driven by page
+          scroll. Hidden on desktop, where the horizontal one runs. */}
+      <SpotlightAccordion items={items} />
+
+    </>
   );
 }
