@@ -110,7 +110,9 @@ export default function Spotlight() {
                   return (
                     <div
                       key={i}
-                      className={`spotlight-panel${panning ? " is-panning" : ""}`}
+                      className={`spotlight-panel${
+                        i === focusedPanel ? " is-active" : ""
+                      }${panning ? " is-panning" : ""}`}
                       style={getPanelPosition(i)}
                       onMouseEnter={
                         !editing ? () => setFocusedPanel(i) : undefined

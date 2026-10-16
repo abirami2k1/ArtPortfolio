@@ -4,6 +4,9 @@
   --muted: #8a8a8a;
   --frame: #ffffff;
   --ease: cubic-bezier(0.075, 0.82, 0.165, 1);
+  /* Long, late deceleration — the accordion's glide. */
+  --glide: cubic-bezier(0.22, 1, 0.36, 1);
+  --glide-time: 0.85s;
 
   /* folder tabs */
   --folder-1: #525252;
@@ -245,8 +248,15 @@ img {
   width: 320px;
   height: 100%;
   object-fit: cover;
+  filter: grayscale(1);
+  transition: filter 0.6s var(--glide);
   pointer-events: none;
   user-select: none;
+}
+
+/* Only the focused panel is in colour. */
+.spotlight-panel.is-active img {
+  filter: none;
 }
 
 .spotlight-focus-indicator {
@@ -392,17 +402,26 @@ img {
     --sa-stretch: 1;
   }
 
+  /* A centred strip, the desktop panel's width rather than full bleed;
+     JS keeps --sa-w and --sa-h on the stage. */
   .sa-item {
     position: absolute;
-    left: 16px;
-    right: 16px;
+    top: 0;
+    left: 50%;
+    width: var(--sa-w, 196px);
+    margin-left: calc(var(--sa-w, 196px) / -2);
     padding: 0;
     border: 0;
     background: var(--folder-2);
     overflow: hidden;
     cursor: pointer;
-    transition: top 0.6s var(--ease), height 0.6s var(--ease);
-    will-change: top, height;
+    /* Scroll names the open piece; the move itself is this transition, the
+       same one the desktop panels use, so a swap always finishes rather
+       than stalling half-open under the finger. */
+    transition:
+      transform 1s var(--ease),
+      height 1s var(--ease);
+    will-change: transform, height;
   }
 
   .sa-item img {
@@ -410,8 +429,15 @@ img {
     height: 100%;
     object-fit: cover;
     transform: skewY(var(--sa-skew)) scaleY(var(--sa-stretch));
+    /* Only the open piece is in colour, faded in as on desktop. */
+    filter: grayscale(1);
+    transition: filter 0.6s var(--glide);
     pointer-events: none;
     user-select: none;
+  }
+
+  .sa-item.is-active img {
+    filter: none;
   }
 
   /* The open piece, framed, with lines running out to both edges — the
@@ -419,12 +445,14 @@ img {
   .sa-frame {
     position: absolute;
     z-index: 5;
-    left: 16px;
-    right: 16px;
+    top: 50%;
+    left: 50%;
+    width: var(--sa-w, 196px);
+    margin-left: calc(var(--sa-w, 196px) / -2);
+    height: var(--sa-h, 208px);
+    transform: translateY(-50%);
     border: 3px solid var(--frame);
     pointer-events: none;
-    transition: top 0.6s var(--ease), height 0.6s var(--ease);
-    will-change: top, height;
   }
 
   .sa-frame::before,
@@ -475,12 +503,6 @@ img {
     text-align: right;
   }
 
-  @media (prefers-reduced-motion: reduce) {
-    .sa-item,
-    .sa-frame {
-      transition: none;
-    }
-  }
 }
 
 /* ---------- folders (creative corner) ---------- */
