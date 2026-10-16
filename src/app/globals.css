@@ -433,15 +433,108 @@ img {
   text-underline-offset: 6px;
 }
 
-/* ---------- folder page ---------- */
+/* ---------- folder page (preview + thumbnail minimap) ---------- */
 .folder-page {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+}
+
+.minimap-stage {
+  position: absolute;
+  inset: 0;
+  outline: none;
+  touch-action: none;
+}
+
+.img-preview {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  width: 50%;
+  height: 75%;
+}
+
+.img-preview img {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  object-fit: contain;
+  user-select: none;
+}
+
+.img-preview-caption {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.img-preview-caption span:last-child {
+  color: var(--muted);
+}
+
+.minimap {
+  position: absolute;
+  z-index: 5;
+  top: 50%;
+  right: 8em;
+  transform: translateY(-50%);
+  width: 80px;
+  height: 420px;
+  overflow: hidden;
+}
+
+/* The box stays put; the strip slides under it. */
+.indicator {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 60px;
+  border: 1px solid var(--fg);
+  pointer-events: none;
+}
+
+.items {
   position: relative;
-  min-height: 100svh;
-  padding: 120px 32px 48px;
+  width: 100%;
+  will-change: transform;
+}
+
+.item {
+  display: block;
+  width: 100%;
+  height: 60px;
+  padding: 5px;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: opacity 0.2s;
+  user-select: none;
 }
 
 .folder-page-head {
-  margin-bottom: 40px;
+  position: absolute;
+  z-index: 15;
+  bottom: 84px;
+  left: 32px;
+  right: 32px;
+  pointer-events: none;
+  text-shadow: 0 2px 24px rgba(0, 0, 0, 0.55);
 }
 
 .folder-page-index,
@@ -449,81 +542,27 @@ img {
   font-size: 12px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--fg);
+}
+
+.folder-page-blurb {
+  opacity: 0.7;
 }
 
 .folder-page-head h1 {
-  margin: 12px 0;
-  font-size: clamp(3rem, 9vw, 7rem);
+  margin: 8px 0;
+  font-size: clamp(2.5rem, 6vw, 4.5rem);
   font-weight: 400;
   line-height: 0.95;
   text-transform: lowercase;
 }
 
-.gallery-filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 28px;
-}
-
-.gallery-filters button {
-  padding: 8px 14px;
-  border: 1px solid var(--folder-3);
-  border-radius: 999px;
-  background: none;
-  color: var(--muted);
-  font: inherit;
-  font-size: 12px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: all 0.25s;
-}
-
-.gallery-filters button:hover {
-  color: var(--fg);
-}
-
-.gallery-filters button[aria-pressed="true"] {
-  background: var(--folder-1);
-  border-color: var(--folder-1);
-  color: var(--folder-1-fg);
-}
-
-.gallery {
-  list-style: none;
-  columns: 3 280px;
-  column-gap: 20px;
-}
-
-.gallery-item {
-  break-inside: avoid;
-  margin-bottom: 28px;
-}
-
-.gallery-item img {
-  width: 100%;
-  height: auto;
-}
-
-.gallery-caption {
-  display: flex;
-  justify-content: space-between;
-  gap: 14px;
-  margin-top: 10px;
-  font-size: 12px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.gallery-caption span:last-child {
-  color: var(--muted);
-  text-align: right;
-}
-
+/* Shown in place of the parallax when a folder has no pieces yet. */
 .gallery-empty {
-  padding: 80px 0;
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
   color: var(--muted);
   font-size: 14px;
   letter-spacing: 0.12em;
@@ -531,15 +570,16 @@ img {
 }
 
 .folder-page-nav {
+  position: absolute;
+  z-index: 15;
+  inset: auto 32px 28px 32px;
   display: flex;
   justify-content: space-between;
   gap: 16px;
-  margin-top: 48px;
-  padding-top: 24px;
-  border-top: 1px solid var(--folder-2);
   font-size: 12px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
+  text-shadow: 0 2px 24px rgba(0, 0, 0, 0.55);
 }
 
 .folder-page-nav a:hover {
@@ -595,8 +635,50 @@ img {
     --folder-bg: var(--folder-2);
   }
 
-  .folder-page {
-    padding: 88px 16px 32px;
+  .folder-page-head {
+    left: 16px;
+    right: 16px;
+    bottom: 76px;
+  }
+
+  .folder-page-nav {
+    inset: auto 16px 24px 16px;
+  }
+}
+
+/* Below this width the strip turns horizontal and sits under the preview. */
+@media (max-width: 900px) {
+  .minimap {
+    top: auto;
+    right: auto;
+    bottom: 11em;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(90vw, 420px);
+    height: 80px;
+  }
+
+  .indicator {
+    width: 60px;
+    height: 100%;
+  }
+
+  .items {
+    display: flex;
+    flex-direction: row;
+    width: max-content;
+    height: 100%;
+  }
+
+  .item {
+    width: 60px;
+    height: 100%;
+  }
+
+  .img-preview {
+    top: 38%;
+    width: 80%;
+    height: 50%;
   }
 }
 

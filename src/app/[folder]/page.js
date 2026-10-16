@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Header from "@/components/Header";
-import FolderGallery from "@/components/FolderGallery";
+import FolderMinimap from "@/components/FolderMinimap";
 import folders, { getFolder, getFolderArtworks } from "@/data/folders";
 
 export const dynamicParams = false;
@@ -28,6 +28,8 @@ export default async function FolderPage({ params }) {
     <main className="folder-page">
       <Header />
 
+      <FolderMinimap artworks={getFolderArtworks(slug)} />
+
       <div className="folder-page-head">
         <p className="folder-page-index">
           {String(index + 1).padStart(2, "0")} / {String(folders.length).padStart(2, "0")}
@@ -35,8 +37,6 @@ export default async function FolderPage({ params }) {
         <h1>{folder.name}</h1>
         <p className="folder-page-blurb">{folder.blurb}</p>
       </div>
-
-      <FolderGallery artworks={getFolderArtworks(slug)} />
 
       <nav className="folder-page-nav" aria-label="Folders">
         <Link href="/#folders">← All folders</Link>
