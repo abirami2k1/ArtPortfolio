@@ -1,18 +1,19 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 
-// The desktop accordion turned on its side. A tall spacer gives the page
-// something to scroll; the stage sticks to the viewport while scroll picks
-// which piece is open. Exactly as on desktop, that choice is a whole number:
-// scroll names the open piece and CSS runs the move, so the column is never
-// caught resting mid-swap with two half-open photos.
+// The desktop accordion turned on its side, driven the way phlntn.com drives
+// its gallery: the swipe is an input, not a scroll position. While the stage
+// holds the screen the page does not move; a gesture accumulates until it
+// crosses a threshold, and that names the next piece. Nothing animates on a
+// fixed duration — every frame each piece eases toward the size it wants, so
+// a second flick mid-move simply changes the target and the motion carries on
+// from where it is instead of queueing another second-long transition.
+
 // Sliver size, the desktop panel's collapsed width turned on its side.
 const COLLAPSED_MAX = 20;
 const COLLAPSED_MIN = 6;
 const GAP = 4;
-// Page travel per piece: how far you scroll to move the accordion by one.
-const SCROLL_PER_ITEM = 90;
 // The open piece keeps the desktop panel's 320-by-340 proportion, at about
 // half the viewport width — the column is a centred strip, not full bleed.
 const PANEL_WIDTH = 320;
@@ -27,6 +28,20 @@ const HEIGHT_FLOOR_RATIO = 0.4;
 // Server-render size, corrected on the first frame in the browser.
 const DEFAULT_VIEWPORT = 800;
 const DEFAULT_WIDTH = 390;
+const DEFAULT_HEADER = 56;
+
+// Motion, with phlntn.com's constants. The ease is per millisecond rather
+// than per frame, so the move takes the same time on any refresh rate, and
+// the frame delta is capped: a hitch must not teleport the accordion.
+const SIZE_EASE = 0.005;
+const MAX_FRAME = 100;
+const SETTLED = 0.05;
+// Gesture weight, inverse: the threshold is this much of the viewport, so
+// roughly one piece per 1.5% of the screen swiped.
+const TOUCH_SPEED = 0.015;
+const WHEEL_SPEED = 0.01;
+
+const MOBILE = "(max-width: 1000px)";
 
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
@@ -53,114 +68,297 @@ const collapsedFor = (viewport, expanded, count) =>
     COLLAPSED_MAX,
   );
 
-function layoutFor(active, viewport, width, count) {
-  const panel = panelFor(viewport, width, count);
-  const collapsed = collapsedFor(viewport, panel.height, count);
+// Server-render layout, so the first paint is a column rather than a pile.
+function initialLayout(count) {
+  const panel = panelFor(DEFAULT_VIEWPORT, DEFAULT_WIDTH, count);
+  const collapsed = collapsedFor(DEFAULT_VIEWPORT, panel.height, count);
   const tops = [];
-  const sizes = [];
-  let total = 0;
-
+  let y = 0;
   for (let i = 0; i < count; i++) {
-    const size = i === active ? panel.height : collapsed;
-    tops.push(total);
-    sizes.push(size);
-    total += size + GAP;
+    tops.push(y);
+    y += (i === 0 ? panel.height : collapsed) + GAP;
   }
-
-  // Slide the stack so the open piece sits at screen centre.
-  const centre = tops[active] + sizes[active] / 2;
-  return { tops, sizes, panel, offset: viewport / 2 - centre };
+  const offset = DEFAULT_VIEWPORT / 2 - (tops[0] + panel.height / 2);
+  return { tops, offset, panel, collapsed };
 }
 
+const pad = (n) => String(n).padStart(2, "0");
+
 export default function SpotlightAccordion({ items }) {
-  const spacerRef = useRef(null);
+  const rootRef = useRef(null);
   const stageRef = useRef(null);
-  const [viewport, setViewport] = useState(DEFAULT_VIEWPORT);
-  const [width, setWidth] = useState(DEFAULT_WIDTH);
-  const [active, setActive] = useState(0);
+  const itemRefs = useRef([]);
+  const captionRef = useRef(null);
+  const numberRef = useRef(null);
+  const titleRef = useRef(null);
+  const categoryRef = useRef(null);
 
   const count = items.length;
 
-  // Scroll decides which piece is open; the transition itself is CSS, so a
-  // swap always runs to completion instead of tracking the finger.
+  // One effect owns the whole thing. Nothing here goes through React state:
+  // a re-render per frame would cost more than the motion itself, and the
+  // caption is three text nodes, so it is written straight to the DOM — the
+  // component renders once and the loop takes it from there.
   useEffect(() => {
-    const spacer = spacerRef.current;
-    if (!spacer) return;
+    const root = rootRef.current;
+    const stage = stageRef.current;
+    if (!root || !stage) return;
+
+    const mobile = window.matchMedia(MOBILE);
+
+    // Each piece carries its own current size and eases toward its own
+    // target, which is the whole of phlntn's gallery layout.
+    const sizes = new Array(count).fill(COLLAPSED_MIN);
+    const written = new Array(count).fill(-1);
+    const tops = new Array(count).fill(0);
+
+    let target = 0;
+    let viewport = DEFAULT_VIEWPORT;
+    let panelHeight = 0;
+    let collapsedHeight = COLLAPSED_MIN;
+    let primed = false;
 
     let frame = null;
+    let previous = 0;
 
-    const read = () => {
-      frame = null;
-      // The stage's own height, not window.innerHeight: the stage is 100svh,
-      // and on mobile browsers innerHeight is the larger viewport. Measuring
-      // the stage is what keeps the open piece centred inside the frame.
-      const stage = stageRef.current;
-      const height = stage?.getBoundingClientRect().height || window.innerHeight;
-      setViewport(height);
-      setWidth(window.innerWidth);
+    let tracker = 0;
+    let lastTouch = null;
+    let lastDelta = 0;
 
-      const rect = spacer.getBoundingClientRect();
-      const range = rect.height - height;
-      const position =
-        range > 0 ? clamp(-rect.top / range, 0, 1) * (count - 1) : 0;
+    // The stage fills what the sticky header leaves, so the page sits at
+    // the top with the accordion exactly filling the screen — which is what
+    // makes "scrolled to the top" a reliable test for owning the gesture.
+    const measure = () => {
+      const header = document.querySelector(".header");
+      const headerHeight = Math.round(
+        header?.getBoundingClientRect().height || DEFAULT_HEADER,
+      );
+      root.style.setProperty("--sa-top", `${headerHeight}px`);
 
-      const nearest = Math.round(position);
-      setActive((prev) => (prev === nearest ? prev : nearest));
+      const rect = stage.getBoundingClientRect();
+      viewport = rect.height || window.innerHeight;
+      const panel = panelFor(viewport, rect.width || window.innerWidth, count);
+      panelHeight = panel.height;
+      collapsedHeight = collapsedFor(viewport, panelHeight, count);
+
+      stage.style.setProperty("--sa-w", `${panel.width.toFixed(1)}px`);
+      stage.style.setProperty("--sa-h", `${panelHeight.toFixed(1)}px`);
+
+      // First measurement lands settled, so the accordion does not animate
+      // in from a layout that was only ever a guess.
+      if (!primed) {
+        for (let i = 0; i < count; i++) {
+          sizes[i] = i === target ? panelHeight : collapsedHeight;
+        }
+        primed = true;
+      }
     };
 
-    const request = () => {
-      if (frame === null) frame = requestAnimationFrame(read);
+    const draw = () => {
+      let y = 0;
+      for (let i = 0; i < count; i++) {
+        tops[i] = y;
+        y += sizes[i] + GAP;
+      }
+
+      // Centre the piece being opened. Taking it from the sizes as they are
+      // now means the column slides while they grow, and lands exactly in
+      // the frame once they stop.
+      const offset = viewport / 2 - (tops[target] + sizes[target] / 2);
+
+      for (let i = 0; i < count; i++) {
+        const node = itemRefs.current[i];
+        if (!node) continue;
+        node.style.transform = `translate3d(0, ${(offset + tops[i]).toFixed(2)}px, 0)`;
+        // Height is the one write that costs layout, so only the two or
+        // three pieces actually resizing pay for it.
+        if (Math.abs(written[i] - sizes[i]) > 0.01) {
+          node.style.height = `${sizes[i].toFixed(2)}px`;
+          written[i] = sizes[i];
+        }
+      }
     };
 
-    read();
-    window.addEventListener("scroll", request, { passive: true });
-    window.addEventListener("resize", request, { passive: true });
+    const animate = (now) => {
+      const delta = Math.min(now - previous, MAX_FRAME);
+      previous = now;
+      const ease = Math.min(delta * SIZE_EASE, 1);
+
+      let moving = false;
+      for (let i = 0; i < count; i++) {
+        const want = i === target ? panelHeight : collapsedHeight;
+        const gap = want - sizes[i];
+        if (Math.abs(gap) > SETTLED) {
+          sizes[i] += gap * ease;
+          moving = true;
+        } else {
+          sizes[i] = want;
+        }
+      }
+
+      draw();
+      // Stop once everything has settled rather than burning a phone's
+      // battery on a loop with nothing to do.
+      frame = moving ? requestAnimationFrame(animate) : null;
+    };
+
+    const start = () => {
+      if (frame !== null) return;
+      previous = performance.now();
+      frame = requestAnimationFrame(animate);
+    };
+
+    const writeCaption = () => {
+      const art = items[target];
+      if (numberRef.current) numberRef.current.textContent = pad(target + 1);
+      if (titleRef.current) titleRef.current.textContent = art.title;
+      if (categoryRef.current) categoryRef.current.textContent = art.category;
+
+      // Replay the entrance by taking the class off and putting it back.
+      const caption = captionRef.current;
+      if (caption) {
+        caption.classList.remove("is-in");
+        void caption.offsetWidth;
+        caption.classList.add("is-in");
+      }
+    };
+
+    const navigate = (direction) => {
+      const next = clamp(target + direction, 0, count - 1);
+      if (next === target) return false;
+
+      const leaving = itemRefs.current[target];
+      const entering = itemRefs.current[next];
+      leaving?.classList.remove("is-active");
+      leaving?.removeAttribute("aria-current");
+      leaving?.querySelector("img")?.setAttribute("alt", "");
+      entering?.classList.add("is-active");
+      entering?.setAttribute("aria-current", "true");
+      entering?.querySelector("img")?.setAttribute("alt", items[next].title);
+
+      target = next;
+      writeCaption();
+      start();
+      return true;
+    };
+
+    // The gallery owns the gesture while it has the whole screen. On a phone
+    // that is the whole page — the folder stack is hidden and lives in the
+    // menu, so there is nothing below to scroll to and nothing is taken away
+    // by holding the swipe. The scroll test is only insurance for the day
+    // something is put below it.
+    const owns = () => mobile.matches && window.scrollY <= 1;
+
+    // phlntn's accumulator: a gesture adds up until it is worth a piece, the
+    // threshold is taken back out rather than reset, so a long steady swipe
+    // keeps stepping, and reversing direction drops what had built up.
+    const accumulate = (amount, threshold) => {
+      // A move that reports no change says nothing about direction; letting
+      // it through would read as a reversal and throw away a slow drag.
+      if (amount === 0) return;
+      if (Math.sign(amount) !== Math.sign(lastDelta)) tracker = 0;
+      lastDelta = amount;
+      tracker += amount;
+
+      if (Math.abs(tracker) > threshold) {
+        const direction = Math.sign(tracker);
+        tracker -= direction * threshold;
+        navigate(direction);
+      }
+    };
+
+    const onTouchStart = () => {
+      tracker = 0;
+      lastTouch = null;
+      lastDelta = 0;
+    };
+
+    const onTouchMove = (event) => {
+      if (!owns() || event.touches.length > 1) return;
+      event.preventDefault();
+
+      const position = event.touches[0].screenY;
+      const delta = lastTouch !== null ? position - lastTouch : 0;
+      lastTouch = position;
+      // Negated: dragging the finger up moves forward, as scrolling would.
+      accumulate(-delta, viewport * TOUCH_SPEED);
+    };
+
+    const onWheel = (event) => {
+      if (!owns()) return;
+      event.preventDefault();
+      accumulate(event.deltaX + event.deltaY, viewport * WHEEL_SPEED);
+    };
+
+    const onKeyDown = (event) => {
+      if (!owns() || event.key.indexOf("Arrow") !== 0) return;
+      const direction =
+        event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 1;
+      event.preventDefault();
+      navigate(direction);
+    };
+
+    // Taking the touch means telling the browser not to scroll from it in
+    // the first place; give it back the moment the page has moved on.
+    const onScroll = () => {
+      stage.style.touchAction = owns() ? "none" : "auto";
+    };
+
+    const sync = () => {
+      if (!mobile.matches) {
+        if (frame !== null) cancelAnimationFrame(frame);
+        frame = null;
+        stage.style.touchAction = "";
+        return;
+      }
+      measure();
+      draw();
+      start();
+      onScroll();
+    };
+
+    sync();
+
+    mobile.addEventListener("change", sync);
+    window.addEventListener("resize", sync, { passive: true });
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("keydown", onKeyDown);
+    stage.addEventListener("touchstart", onTouchStart, { passive: true });
+    stage.addEventListener("touchmove", onTouchMove, { passive: false });
+    stage.addEventListener("wheel", onWheel, { passive: false });
+
+    // Tapping a sliver opens it, the same move by another route.
+    const onClick = (event) => {
+      const button = event.target.closest(".sa-item");
+      if (!button) return;
+      const index = itemRefs.current.indexOf(button);
+      if (index >= 0) navigate(index - target);
+    };
+    stage.addEventListener("click", onClick);
 
     return () => {
       if (frame !== null) cancelAnimationFrame(frame);
-      window.removeEventListener("scroll", request);
-      window.removeEventListener("resize", request);
+      mobile.removeEventListener("change", sync);
+      window.removeEventListener("resize", sync);
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("keydown", onKeyDown);
+      stage.removeEventListener("touchstart", onTouchStart);
+      stage.removeEventListener("touchmove", onTouchMove);
+      stage.removeEventListener("wheel", onWheel);
+      stage.removeEventListener("click", onClick);
     };
-  }, [count]);
+  }, [items, count]);
 
-  // Tapping a sliver scrolls to it, so scroll stays the only thing deciding
-  // what is open; the native smooth scroll carries it there.
-  const goTo = (index) => {
-    const spacer = spacerRef.current;
-    if (!spacer) return;
-    const { top, height } = spacer.getBoundingClientRect();
-    const stage = stageRef.current;
-    const range =
-      height - (stage?.getBoundingClientRect().height || window.innerHeight);
-    window.scrollTo({
-      top: top + window.scrollY + (index / (count - 1)) * range,
-      behavior: "smooth",
-    });
-  };
-
-  // Rendered from the open piece alone: the first paint is correct before
-  // any measurement, and every later change is one CSS transition.
-  const { tops, sizes, panel, offset } = layoutFor(
-    active,
-    viewport,
-    width,
-    count,
-  );
-  const current = items[active];
-  const pad = (n) => String(n).padStart(2, "0");
+  const first = initialLayout(count);
 
   return (
-    <div
-      className="sa"
-      ref={spacerRef}
-      style={{ height: count * SCROLL_PER_ITEM }}
-    >
+    <div className="sa" ref={rootRef}>
       <div
         className="sa-stage"
         ref={stageRef}
         style={{
-          "--sa-w": `${panel.width.toFixed(1)}px`,
-          "--sa-h": `${panel.height.toFixed(1)}px`,
+          "--sa-w": `${first.panel.width.toFixed(1)}px`,
+          "--sa-h": `${first.panel.height.toFixed(1)}px`,
         }}
       >
         <div className="sa-frame" aria-hidden="true" />
@@ -169,30 +367,37 @@ export default function SpotlightAccordion({ items }) {
           <button
             type="button"
             key={art.src}
-            className={`sa-item${i === active ? " is-active" : ""}`}
+            ref={(node) => {
+              itemRefs.current[i] = node;
+            }}
+            className={`sa-item${i === 0 ? " is-active" : ""}`}
+            aria-current={i === 0 ? "true" : undefined}
             style={{
-              transform: `translate3d(0, ${(offset + tops[i]).toFixed(1)}px, 0)`,
-              height: sizes[i],
+              transform: `translate3d(0, ${(first.offset + first.tops[i]).toFixed(1)}px, 0)`,
+              height: i === 0 ? first.panel.height : first.collapsed,
             }}
             aria-label={art.title}
-            aria-current={i === active}
-            onClick={() => goTo(i)}
           >
             <img
               src={art.src}
-              alt={i === active ? art.title : ""}
+              alt={i === 0 ? art.title : ""}
               style={{ objectPosition: art.position }}
               loading={i === 0 ? "eager" : "lazy"}
+              draggable="false"
             />
           </button>
         ))}
 
-        <p className="sa-caption" key={active}>
+        <p className="sa-caption is-in" ref={captionRef}>
           <span className="sa-index">
-            {pad(active + 1)} <span>/ {count}</span>
+            <span ref={numberRef}>{pad(1)}</span> <span>/ {count}</span>
           </span>
-          <span className="sa-title">{current.title}</span>
-          <span className="sa-category">{current.category}</span>
+          <span className="sa-title" ref={titleRef}>
+            {items[0].title}
+          </span>
+          <span className="sa-category" ref={categoryRef}>
+            {items[0].category}
+          </span>
         </p>
       </div>
     </div>

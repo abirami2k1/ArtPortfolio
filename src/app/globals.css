@@ -360,6 +360,13 @@ img {
     overflow: visible;
   }
 
+  /* No rubber-band: a bounce at the top would pull the stage off the screen
+     mid-gesture and hand the swipe back to the page in the middle of it. */
+  html,
+  body {
+    overscroll-behavior-y: none;
+  }
+
   .hero {
     flex: none;
     min-height: 0;
@@ -384,17 +391,23 @@ img {
     display: inline-block;
   }
 
+  /* Exactly what the sticky header leaves, so resting at the top of the
+     page is the same thing as the accordion having the whole screen —
+     which is the test the script uses to decide whether a swipe belongs
+     to the gallery or to the page. JS keeps --sa-top measured. */
   .sa {
     display: block;
     position: relative;
+    height: calc(100svh - var(--sa-top, 56px));
   }
 
-  /* The stage pins to the viewport while the spacer above scrolls past. */
   .sa-stage {
-    position: sticky;
-    top: 0;
-    height: 100svh;
+    position: relative;
+    height: 100%;
     overflow: hidden;
+    /* The gallery takes the swipe while it holds the screen; the script
+       hands this back the moment the page has moved past it. */
+    touch-action: none;
   }
 
   /* A centred strip, the desktop panel's width rather than full bleed;
@@ -410,14 +423,9 @@ img {
     background: var(--folder-2);
     overflow: hidden;
     cursor: pointer;
-    /* Scroll names the open piece; the move itself is this transition — the
-       desktop panel's 1s and ease, turned on its side — so a swap always
-       finishes rather than stalling half-open under the finger. */
-    transition:
-      transform 1s var(--ease),
-      height 1s var(--ease);
-    /* No will-change here: there are forty-odd of these, and promoting them
-       all costs more on a phone than the hint saves. */
+    /* No transition: the script eases every piece toward its own size each
+       frame instead. A fixed duration cannot be retargeted, so flicking
+       again mid-move would queue a second one and trail the finger. */
     backface-visibility: hidden;
   }
 
@@ -496,6 +504,11 @@ img {
     letter-spacing: 0.14em;
     text-transform: uppercase;
     text-shadow: 0 1px 14px rgba(0, 0, 0, 0.9);
+  }
+
+  /* Replayed by taking the class off and putting it back, since the caption
+     is written in place rather than remounted. */
+  .sa-caption.is-in {
     animation: caption-in 0.6s var(--ease) both;
   }
 
