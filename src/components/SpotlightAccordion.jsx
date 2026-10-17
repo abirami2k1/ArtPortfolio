@@ -28,13 +28,6 @@ const HEIGHT_FLOOR_RATIO = 0.4;
 const DEFAULT_VIEWPORT = 800;
 const DEFAULT_WIDTH = 390;
 
-// Drag weight: scroll speed leans the pieces, letting go settles them.
-const MAX_VELOCITY = 60;
-const MAX_SKEW = 3;
-const MAX_STRETCH = 0.06;
-const VELOCITY_EASE = 0.22;
-
-const lerp = (start, end, factor) => start + (end - start) * factor;
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
 // The open piece's box. Width leads; if that makes it too tall for the
@@ -98,11 +91,16 @@ export default function SpotlightAccordion({ items }) {
 
     const read = () => {
       frame = null;
-      setViewport(window.innerHeight);
+      // The stage's own height, not window.innerHeight: the stage is 100svh,
+      // and on mobile browsers innerHeight is the larger viewport. Measuring
+      // the stage is what keeps the open piece centred inside the frame.
+      const stage = stageRef.current;
+      const height = stage?.getBoundingClientRect().height || window.innerHeight;
+      setViewport(height);
       setWidth(window.innerWidth);
 
       const rect = spacer.getBoundingClientRect();
-      const range = rect.height - window.innerHeight;
+      const range = rect.height - height;
       const position =
         range > 0 ? clamp(-rect.top / range, 0, 1) * (count - 1) : 0;
 
@@ -125,71 +123,15 @@ export default function SpotlightAccordion({ items }) {
     };
   }, [count]);
 
-  // Scroll speed leans the pieces; it eases back to rest on its own.
-  useEffect(() => {
-    const stage = stageRef.current;
-    if (!stage) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-
-    let last = window.scrollY;
-    let velocity = 0;
-    let frame = null;
-    let idle = 0;
-
-    const set = (skew, stretch) => {
-      stage.style.setProperty("--sa-skew", `${skew}deg`);
-      stage.style.setProperty("--sa-stretch", stretch);
-    };
-
-    const tick = () => {
-      const y = window.scrollY;
-      const delta = y - last;
-      last = y;
-
-      velocity = lerp(velocity, delta, VELOCITY_EASE);
-      const capped = clamp(velocity, -MAX_VELOCITY, MAX_VELOCITY);
-      const ratio = capped / MAX_VELOCITY;
-
-      set(
-        (ratio * MAX_SKEW).toFixed(2),
-        (1 + Math.min(Math.abs(ratio), 1) * MAX_STRETCH).toFixed(3),
-      );
-
-      if (delta === 0 && Math.abs(velocity) < 0.05) {
-        idle += 1;
-        if (idle > 8) {
-          velocity = 0;
-          set(0, 1);
-          frame = null;
-          return;
-        }
-      } else {
-        idle = 0;
-      }
-
-      frame = requestAnimationFrame(tick);
-    };
-
-    const onScroll = () => {
-      idle = 0;
-      if (frame === null) frame = requestAnimationFrame(tick);
-    };
-
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-      if (frame !== null) cancelAnimationFrame(frame);
-      set(0, 1);
-    };
-  }, []);
-
   // Tapping a sliver scrolls to it, so scroll stays the only thing deciding
   // what is open; the native smooth scroll carries it there.
   const goTo = (index) => {
     const spacer = spacerRef.current;
     if (!spacer) return;
     const { top, height } = spacer.getBoundingClientRect();
-    const range = height - window.innerHeight;
+    const stage = stageRef.current;
+    const range =
+      height - (stage?.getBoundingClientRect().height || window.innerHeight);
     window.scrollTo({
       top: top + window.scrollY + (index / (count - 1)) * range,
       behavior: "smooth",

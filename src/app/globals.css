@@ -395,11 +395,6 @@ img {
     top: 0;
     height: 100svh;
     overflow: hidden;
-
-    /* Driven by scroll velocity; these rest values keep the stage correct
-       before any script runs. */
-    --sa-skew: 0deg;
-    --sa-stretch: 1;
   }
 
   /* A centred strip, the desktop panel's width rather than full bleed;
@@ -415,20 +410,29 @@ img {
     background: var(--folder-2);
     overflow: hidden;
     cursor: pointer;
-    /* Scroll names the open piece; the move itself is this transition, the
-       same one the desktop panels use, so a swap always finishes rather
-       than stalling half-open under the finger. */
+    /* Scroll names the open piece; the move itself is this transition — the
+       desktop panel's 1s and ease, turned on its side — so a swap always
+       finishes rather than stalling half-open under the finger. */
     transition:
       transform 1s var(--ease),
       height 1s var(--ease);
-    will-change: transform, height;
+    /* No will-change here: there are forty-odd of these, and promoting them
+       all costs more on a phone than the hint saves. */
+    backface-visibility: hidden;
   }
 
+  /* As on desktop, the image keeps the open piece's size whatever the piece
+     it sits in is doing: the strip is a crop of the whole photo, and opening
+     one widens the window onto it rather than stretching the photo back out.
+     Desktop pins a 320px-wide image and lets the panel's width travel; here
+     the panel's height travels, so the image is pinned to --sa-h instead. */
   .sa-item img {
+    position: absolute;
+    top: 50%;
     width: 100%;
-    height: 100%;
+    height: var(--sa-h, 208px);
+    transform: translateY(-50%);
     object-fit: cover;
-    transform: skewY(var(--sa-skew)) scaleY(var(--sa-stretch));
     /* Only the open piece is in colour, faded in as on desktop. */
     filter: grayscale(1);
     transition: filter 0.6s var(--glide);
@@ -474,20 +478,25 @@ img {
     left: 100%;
   }
 
+  /* Two lines rather than the desktop row: index and title share the first,
+     the category sits under the title. A row cannot fit three right-aligned
+     fields at this width without the category's text spilling over the
+     title, so the grid gives each its own cell. */
   .sa-caption {
     position: absolute;
     z-index: 6;
     left: 16px;
     right: 16px;
     bottom: 18px;
-    display: flex;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
     align-items: baseline;
-    gap: 10px;
+    gap: 4px 10px;
     font-size: 11px;
     letter-spacing: 0.14em;
     text-transform: uppercase;
     text-shadow: 0 1px 14px rgba(0, 0, 0, 0.9);
-    animation: caption-in 0.5s var(--ease) both;
+    animation: caption-in 0.6s var(--ease) both;
   }
 
   .sa-index span,
@@ -495,12 +504,21 @@ img {
     color: var(--muted);
   }
 
+  .sa-index {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
   .sa-title {
-    flex: 1;
+    grid-column: 2;
+    grid-row: 1;
+    overflow-wrap: anywhere;
   }
 
   .sa-category {
-    text-align: right;
+    grid-column: 2;
+    grid-row: 2;
+    overflow-wrap: anywhere;
   }
 
 }
