@@ -457,12 +457,12 @@ img {
   .sa-frame {
     position: absolute;
     z-index: 5;
-    top: 50%;
+    top: 0;
     left: 50%;
     width: var(--sa-w, 196px);
     margin-left: calc(var(--sa-w, 196px) / -2);
-    height: var(--sa-h, 208px);
-    transform: translateY(-50%);
+    /* Height and position come from the script, which walks the frame to
+       the open piece while the column holds still. */
     border: 3px solid var(--frame);
     pointer-events: none;
   }
@@ -490,15 +490,22 @@ img {
      the category sits under the title. A row cannot fit three right-aligned
      fields at this width without the category's text spilling over the
      title, so the grid gives each its own cell. */
+  /* Below the column, not over it, as the desktop caption sits below the
+     track. The script measures this and keeps the column out of its band. */
   .sa-caption {
     position: absolute;
     z-index: 6;
     left: 16px;
     right: 16px;
-    bottom: 18px;
+    bottom: 14px;
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
     align-items: baseline;
+    /* Room for a title that wraps, reserved whether it does or not: the
+       band the column is kept out of is measured once, so the caption must
+       not change height when the piece changes. */
+    min-height: 48px;
+    align-content: end;
     gap: 4px 10px;
     font-size: 11px;
     letter-spacing: 0.14em;

@@ -29,6 +29,10 @@ const HEIGHT_FLOOR_RATIO = 0.4;
 const DEFAULT_VIEWPORT = 800;
 const DEFAULT_WIDTH = 390;
 const DEFAULT_HEADER = 56;
+// The caption sits below the column as it does on desktop, not over it, so
+// the column is laid out in what is left above it.
+const CAPTION_SPACE = 30;
+const DEFAULT_CAPTION = 46;
 
 // Motion, with phlntn.com's constants. The ease is per millisecond rather
 // than per frame, so the move takes the same time on any refresh rate, and
@@ -68,18 +72,30 @@ const collapsedFor = (viewport, expanded, count) =>
     COLLAPSED_MAX,
   );
 
+// Where the column starts. The whole column is centred once and stays
+// there — its total height never changes, since exactly one piece is open
+// at a time — which is what lets the photos hold still while the frame is
+// the thing that travels, as on desktop.
+const originFor = (viewport, expanded, collapsed, count) =>
+  (viewport - ((count - 1) * (collapsed + GAP) + expanded)) / 2;
+
 // Server-render layout, so the first paint is a column rather than a pile.
 function initialLayout(count) {
-  const panel = panelFor(DEFAULT_VIEWPORT, DEFAULT_WIDTH, count);
-  const collapsed = collapsedFor(DEFAULT_VIEWPORT, panel.height, count);
+  const viewport = DEFAULT_VIEWPORT - DEFAULT_CAPTION - CAPTION_SPACE;
+  const panel = panelFor(viewport, DEFAULT_WIDTH, count);
+  const collapsed = collapsedFor(viewport, panel.height, count);
   const tops = [];
   let y = 0;
   for (let i = 0; i < count; i++) {
     tops.push(y);
     y += (i === 0 ? panel.height : collapsed) + GAP;
   }
-  const offset = DEFAULT_VIEWPORT / 2 - (tops[0] + panel.height / 2);
-  return { tops, offset, panel, collapsed };
+  return {
+    tops,
+    offset: originFor(viewport, panel.height, collapsed, count),
+    panel,
+    collapsed,
+  };
 }
 
 const pad = (n) => String(n).padStart(2, "0");
@@ -87,6 +103,7 @@ const pad = (n) => String(n).padStart(2, "0");
 export default function SpotlightAccordion({ items }) {
   const rootRef = useRef(null);
   const stageRef = useRef(null);
+  const frameRef = useRef(null);
   const itemRefs = useRef([]);
   const captionRef = useRef(null);
   const numberRef = useRef(null);
@@ -136,7 +153,15 @@ export default function SpotlightAccordion({ items }) {
       root.style.setProperty("--sa-top", `${headerHeight}px`);
 
       const rect = stage.getBoundingClientRect();
-      viewport = rect.height || window.innerHeight;
+      const caption = captionRef.current;
+      const captionHeight =
+        caption?.getBoundingClientRect().height || DEFAULT_CAPTION;
+      // The column gets the stage minus the caption's band, so the two never
+      // sit on top of each other however long a title runs.
+      viewport = Math.max(
+        160,
+        (rect.height || window.innerHeight) - captionHeight - CAPTION_SPACE,
+      );
       const panel = panelFor(viewport, rect.width || window.innerWidth, count);
       panelHeight = panel.height;
       collapsedHeight = collapsedFor(viewport, panelHeight, count);
@@ -161,10 +186,17 @@ export default function SpotlightAccordion({ items }) {
         y += sizes[i] + GAP;
       }
 
-      // Centre the piece being opened. Taking it from the sizes as they are
-      // now means the column slides while they grow, and lands exactly in
-      // the frame once they stop.
-      const offset = viewport / 2 - (tops[target] + sizes[target] / 2);
+      // A fixed origin, taken from the settled sizes rather than the ones
+      // mid-move, so the column cannot drift while a piece grows.
+      const offset = originFor(viewport, panelHeight, collapsedHeight, count);
+
+      // The frame travels to the open piece and the photos hold still,
+      // which is the desktop track's behaviour turned on its side.
+      const frameNode = frameRef.current;
+      if (frameNode) {
+        frameNode.style.transform = `translate3d(0, ${(offset + tops[target]).toFixed(2)}px, 0)`;
+        frameNode.style.height = `${sizes[target].toFixed(2)}px`;
+      }
 
       for (let i = 0; i < count; i++) {
         const node = itemRefs.current[i];
@@ -361,7 +393,15 @@ export default function SpotlightAccordion({ items }) {
           "--sa-h": `${first.panel.height.toFixed(1)}px`,
         }}
       >
-        <div className="sa-frame" aria-hidden="true" />
+        <div
+          className="sa-frame"
+          ref={frameRef}
+          aria-hidden="true"
+          style={{
+            transform: `translate3d(0, ${(first.offset + first.tops[0]).toFixed(1)}px, 0)`,
+            height: first.panel.height,
+          }}
+        />
 
         {items.map((art, i) => (
           <button
